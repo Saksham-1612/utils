@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const app = express();
 const port = 3000;
 
@@ -19,16 +20,33 @@ const GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/v1/spaces/AAAAdYsPt
 app.post("/discourse", async (req, res) => {
   try {
     console.log("Received webhook from Discourse:", req.body);
-    const topic = req.body.topic;
-    if (!topic) {
-      return res.status(400).send("No topic found in payload.");
+    const post = req.body.post;
+    if (!post) {
+      return res.status(400).send("No post found in payload.");
     }
 
-    const title = topic.title || "New Topic";
-    const url = `https://forum.infra.kapturecrm/t/${topic.slug}/${topic.id}`;
+    const title = post.topic_title || "New Post";
+    const url = `https://forum.infra.kapturecrm/t/${post.topic_slug}/${post.topic_id}`;
+
+    // Extract additional post information
+    const author = post.username || 'Anonymous';
+    const postContent = post.raw || 'No content available';
+    const postCreatedAt = new Date(post.created_at).toLocaleString() || 'Unknown time';
+    const postNumber = post.post_number || 1;
+    const isFirstPost = postNumber === 1;
+    
+    // Format content preview (limit to 300 characters)
+    const contentPreview = postContent.length > 300 
+      ? postContent.substring(0, 297) + '...'
+      : postContent;
 
     const message = {
-      text: `🆕 New topic posted: *${title}*\n${url}`
+      text: `🆕 *${isFirstPost ? 'New Topic' : 'New Reply'} in: ${title}*
+      👤 Posted by: ${author}
+      🕒 Time: ${postCreatedAt}
+      📝 Content:
+      ${contentPreview}
+      🔗 ${url}`
     };
 
     await axios.post(GOOGLE_CHAT_WEBHOOK_URL, message);
