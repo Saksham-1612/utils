@@ -2,6 +2,9 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
+// Add middleware to parse JSON bodies
+app.use(express.json());
+
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
