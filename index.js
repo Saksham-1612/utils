@@ -15,6 +15,7 @@ const GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/v1/spaces/AAAAdYsPt
 // Receive webhook from Discourse
 app.post("/discourse", async (req, res) => {
   try {
+    console.log("Received webhook from Discourse:", req.body);
     const topic = req.body.topic;
     if (!topic) {
       return res.status(400).send("No topic found in payload.");
