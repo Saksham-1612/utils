@@ -20,35 +20,35 @@ const GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/v1/spaces/AAAAdYsPt
 app.post("/discourse", async (req, res) => {
   try {
     console.log("Received webhook from Discourse:", req.body);
-    const post = req.body.post;
-    if (!post) {
-      return res.status(400).send("No post found in payload.");
+    let messageText = "";
+    if (req.body.post) {
+      const post = req.body.post;
+      const title = post.topic_title || "New Post";
+      const url = `https://forum.infra.kapturecrm/t/${post.topic_slug}/${post.topic_id}`;
+      const author = post.username || 'Anonymous';
+      const postContent = post.raw || 'No content available';
+      const postCreatedAt = new Date(post.created_at).toLocaleString() || 'Unknown time';
+      const postNumber = post.post_number || 1;
+      const isFirstPost = postNumber === 1;
+      const contentPreview = postContent.length > 300 
+        ? postContent.substring(0, 297) + '...'
+        : postContent;
+      messageText = `🆕 *${isFirstPost ? 'New Topic' : 'New Reply'} in: ${title}*\n👤 Posted by: ${author}\n🕒 Time: ${postCreatedAt}\n📝 Content:\n${contentPreview}\n🔗 ${url}`;
+    } else if (req.body.chat_message) {
+      // Chat message payload
+      const chatMsg = req.body.chat_message;
+      const msg = chatMsg.message || {};
+      const channel = chatMsg.channel || {};
+      const author = msg.user && msg.user.username ? msg.user.username : 'Anonymous';
+      const content = msg.message || msg.cooked || msg.excerpt || 'No content available';
+      const createdAt = msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown time';
+      const channelTitle = channel.title || 'Unknown Channel';
+      messageText = `💬 *New Chat Message in: ${channelTitle}*\n👤 Posted by: ${author}\n🕒 Time: ${createdAt}\n📝 Content:\n${content}`;
+    } else {
+      // Fallback for unknown payloads
+      messageText = `📢 *New Discourse Event*\n\n${JSON.stringify(req.body, null, 2)}`;
     }
-
-    const title = post.topic_title || "New Post";
-    const url = `https://forum.infra.kapturecrm/t/${post.topic_slug}/${post.topic_id}`;
-
-    // Extract additional post information
-    const author = post.username || 'Anonymous';
-    const postContent = post.raw || 'No content available';
-    const postCreatedAt = new Date(post.created_at).toLocaleString() || 'Unknown time';
-    const postNumber = post.post_number || 1;
-    const isFirstPost = postNumber === 1;
-    
-    // Format content preview (limit to 300 characters)
-    const contentPreview = postContent.length > 300 
-      ? postContent.substring(0, 297) + '...'
-      : postContent;
-
-    const message = {
-      text: `🆕 *${isFirstPost ? 'New Topic' : 'New Reply'} in: ${title}*
-      👤 Posted by: ${author}
-      🕒 Time: ${postCreatedAt}
-      📝 Content:
-      ${contentPreview}
-      🔗 ${url}`
-    };
-
+    const message = { text: messageText };
     await axios.post(GOOGLE_CHAT_WEBHOOK_URL, message);
     res.send("Message forwarded to Google Chat.");
   } catch (err) {
